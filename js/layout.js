@@ -65,29 +65,79 @@ function layoutSegment(keys) {
  *   bounds: {minX, minY, maxX, maxY}
  * }
  */
-function buildNetwork(lineIds) {
+
+
+function buildNetwork(lineIds, options = {}) {
   const stations = new Map();
   const paths = [];
-  const selected = LINES.filter(l => lineIds.includes(l.id));
+
+  // lineIds: 실제 게임 출제 대상 노선
+  // displayLineIds: 화면에 표시할 노선
+  // 지정하지 않으면 기존처럼 lineIds만 표시
+  const activeSet = new Set(lineIds);
+  const displayLineIds = options.displayLineIds || lineIds;
+  const selected = LINES.filter(l => displayLineIds.includes(l.id));
 
   for (const line of selected) {
+    const isActiveLine = activeSet.has(line.id);
+
     for (const seg of line.segments) {
       const pts = layoutSegment(seg);
+
+      // 노선은 항상 원래 색으로 그릴 것이므로 active 정보는 필요 없음
       paths.push({ line, points: pts });
+
       seg.forEach((key, i) => {
         if (!stations.has(key)) {
           stations.set(key, {
             key,
             name: stationDisplayName(key),
-            x: pts[i][0], y: pts[i][1],
-            lines: []
+            x: pts[i][0],
+            y: pts[i][1],
+            lines: [],
+            activeLines: []
           });
         }
+
         const st = stations.get(key);
-        if (!st.lines.includes(line.id)) st.lines.push(line.id);
+
+        // 화면 표시용 전체 노선 정보
+        if (!st.lines.includes(line.id)) {
+          st.lines.push(line.id);
+        }
+
+        // 실제 문제 출제 대상 노선 정보
+        if (isActiveLine && !st.activeLines.includes(line.id)) {
+          st.activeLines.push(line.id);
+        }
       });
     }
   }
+
+  // 문제 출제용 역 목록: 선택한 노선에 포함된 역만
+  const quizStations = new Map(
+    [...stations.entries()].filter(([, st]) => st.activeLines.length > 0)
+  );
+
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  for (const st of stations.values()) {
+    minX = Math.min(minX, st.x);
+    maxX = Math.max(maxX, st.x);
+    minY = Math.min(minY, st.y);
+    maxY = Math.max(maxY, st.y);
+  }
+
+  return {
+    stations,
+    quizStations,
+    paths,
+    bounds: { minX, minY, maxX, maxY }
+  };
+}
 
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const st of stations.values()) {
