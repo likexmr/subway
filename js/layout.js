@@ -139,13 +139,6 @@ function buildNetwork(lineIds, options = {}) {
   };
 }
 
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (const st of stations.values()) {
-    minX = Math.min(minX, st.x); maxX = Math.max(maxX, st.x);
-    minY = Math.min(minY, st.y); maxY = Math.max(maxY, st.y);
-  }
-  return { stations, paths, bounds: { minX, minY, maxX, maxY } };
-}
 
 // 전체 데이터셋 기준, 역 키 → 소속 노선 전부 (환승 표시용)
 const ALL_STATION_LINES = (() => {
