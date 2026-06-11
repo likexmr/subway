@@ -35,26 +35,55 @@ const SubwayMap = (() => {
     // 노선 그리기 — 구간(edge) 단위
     // 한 구간을 여러 노선이 공유하면 각 노선 색을 진행방향에 수직으로
     // 나란히(위 반/아래 반) 그려 두 색이 모두 보이게 한다.
+    // 또 via(우회 중간점)가 있으면 직선 대신 둥근 폴리라인으로 그린다.
     const LINE_W = 8;
+
+    // 점 배열을 받아 진행방향 수직으로 off만큼 평행이동
+    const offsetPts = (pts, off) => {
+      if (off === 0) return pts.map(p => [...p]);
+      return pts.map((p, i) => {
+        const prev = pts[Math.max(0, i - 1)];
+        const next = pts[Math.min(pts.length - 1, i + 1)];
+        const dx = next[0] - prev[0], dy = next[1] - prev[1];
+        const len = Math.hypot(dx, dy) || 1;
+        return [p[0] + (-dy / len) * off, p[1] + (dx / len) * off];
+      });
+    };
+    // 점 배열 → 둥근 모서리 path d
+    const roundedD = (pts, radius = 14) => {
+      const f = p => `${p[0].toFixed(1)} ${p[1].toFixed(1)}`;
+      const v = pts.filter((p, i) => i === 0 || Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1]) > 0.5);
+      if (v.length < 2) return "";
+      if (v.length === 2) return `M${f(v[0])} L${f(v[1])}`;
+      let d = `M${f(v[0])}`;
+      for (let i = 1; i < v.length - 1; i++) {
+        const p = v[i - 1], c = v[i], n = v[i + 1];
+        const din = Math.hypot(c[0] - p[0], c[1] - p[1]) || 1;
+        const dout = Math.hypot(n[0] - c[0], n[1] - c[1]) || 1;
+        const rin = Math.min(radius, din / 2), rout = Math.min(radius, dout / 2);
+        const a = [c[0] - (c[0] - p[0]) / din * rin, c[1] - (c[1] - p[1]) / din * rin];
+        const b = [c[0] + (n[0] - c[0]) / dout * rout, c[1] + (n[1] - c[1]) / dout * rout];
+        d += ` L${f(a)} Q${f(c)} ${f(b)}`;
+      }
+      d += ` L${f(v[v.length - 1])}`;
+      return d;
+    };
+
     if (net.edges) {
       for (const e of net.edges) {
-        const dx = e.bx - e.ax, dy = e.by - e.ay;
-        const len = Math.hypot(dx, dy) || 1;
-        // 진행방향에 수직인 단위벡터
-        const nx = -dy / len, ny = dx / len;
+        // 경로 기준점: 시작 → (via들) → 끝
+        const base = [[e.ax, e.ay], ...(e.via || []), [e.bx, e.by]];
         const n = e.lines.length;
-        // n개 선을 중앙 기준 대칭으로 배치. 공유 구간은 살짝 가늘게.
         const w = n > 1 ? LINE_W * 0.62 : LINE_W;
-        const gap = w;                       // 인접 색 간격
+        const gap = w;
         const span = (n - 1) * gap;
         e.lines.forEach((id, i) => {
-          const off = i * gap - span / 2;    // 중앙 정렬 오프셋
-          const ax = e.ax + nx * off, ay = e.ay + ny * off;
-          const bx = e.bx + nx * off, by = e.by + ny * off;
+          const off = i * gap - span / 2;
+          const pts = offsetPts(base, off);
           gLines.appendChild(el("path", {
-            d: `M${ax.toFixed(1)} ${ay.toFixed(1)} L${bx.toFixed(1)} ${by.toFixed(1)}`,
+            d: roundedD(pts),
             fill: "none", stroke: lineById(id).color,
-            "stroke-width": w, "stroke-linecap": "round",
+            "stroke-width": w, "stroke-linecap": "round", "stroke-linejoin": "round",
             class: "line-path"
           }));
         });

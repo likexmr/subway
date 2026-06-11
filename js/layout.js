@@ -8,6 +8,24 @@ function stationDisplayName(key) {
   return DISPLAY_NAME[key] || key;
 }
 
+/* ------------------------------------------------------------
+   구간 우회 경로(ROUTE_VIA)
+   특정 두 역 사이 구간을, 직선이 아니라 지정한 중간점들을 거쳐
+   곡선으로 그리고 싶을 때 사용한다.
+   - 예: GTX-A의 대곡~연신내 구간은 3호선과 같은 높이(y=530)라
+     직선으로 그리면 완전히 겹친다. 살짝 위로 띄워 우회시킨다.
+   - 키는 "정렬된키A||정렬된키B", from은 points가 향하는 시작 역.
+   - lines를 지정하면 그 노선이 포함된 구간에만 적용.
+   ------------------------------------------------------------ */
+const ROUTE_VIA = {
+  "대곡||연신내": {
+    from: "대곡",
+    lines: ["GTXA"],
+    // 대곡(781,530) → 연신내(1325,530). 3호선보다 살짝 위(y=490)로 띄움.
+    points: [[831, 490], [1275, 490]]
+  }
+};
+
 // 한 세그먼트(역 키 배열)의 좌표 배열 계산
 function layoutSegment(keys) {
   const pts = new Array(keys.length).fill(null);
@@ -142,10 +160,26 @@ function buildNetwork(lineIds, options = {}) {
   }
   // 표시 순서를 일정하게 (노선 정의 순서 따라)
   const lineOrder = new Map(LINES.map((l, i) => [l.id, i]));
-  const edges = [...edgeMap.values()].map(e => ({
-    ...e,
-    lines: e.lines.slice().sort((x, y) => lineOrder.get(x) - lineOrder.get(y))
-  }));
+  const edges = [...edgeMap.entries()].map(([k, e]) => {
+    const out = {
+      ...e,
+      lines: e.lines.slice().sort((x, y) => lineOrder.get(x) - lineOrder.get(y))
+    };
+    // 특정 구간은 곡선 우회 경로(via)를 부여해 다른 노선과 겹치지 않게 한다.
+    const route = ROUTE_VIA[k];
+    if (route) {
+      // route.lines가 있으면 해당 노선이 이 구간에 포함될 때만 적용
+      const applies = !route.lines || route.lines.some(id => out.lines.includes(id));
+      if (applies) {
+        // via 좌표는 "대곡→연신내" 기준 방향. 정렬된 키 순서와 맞춰 뒤집기.
+        const [ka, kb] = k.split("||");
+        const forward = (route.from === ka); // route.from이 정렬상 앞이면 그대로
+        out.via = forward ? route.points.map(p => [...p])
+                          : route.points.map(p => [...p]).reverse();
+      }
+    }
+    return out;
+  });
 
   let minX = Infinity;
   let minY = Infinity;
