@@ -575,7 +575,7 @@ body {
 /* 우측 상단 계정 영역 */
 .account-area {
   position: fixed; top: max(14px, env(safe-area-inset-top)); right: 16px;
-  z-index: 40; display: flex; align-items: center; gap: 8px;
+  z-index: 50; display: flex; align-items: center; gap: 8px;
 }
 /* 게임/공부 중에는 방해되지 않게 숨김 */
 .in-game .account-area, .studying .account-area { display: none; }
