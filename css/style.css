@@ -611,6 +611,10 @@ body {
 .home-sub-btns { display: flex; gap: 8px; margin-top: 10px; }
 .home-sub-btns > * { flex: 1; margin-top: 0 !important; }
 
+/* 엔딩 화면: 랭킹(위) → 모드 변경(아래) 세로 배치 */
+.end-stack-btns { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.end-stack-btns > * { width: 100%; margin-top: 0 !important; }
+
 .rank-open-btn {
   font: inherit; font-size: 16px; font-weight: 800;
   background: #fff; color: #b8860b;
