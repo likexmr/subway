@@ -1,0 +1,243 @@
+/* ============================================================
+   account-ui.js — 계정/랭킹/마이페이지 화면 제어
+   ------------------------------------------------------------
+   backend.js의 Account 객체를 사용해 화면을 그린다.
+   game.js와는 window.onPlayFinished(...) 훅으로만 연결된다.
+   ============================================================ */
+
+(() => {
+  const $ = sel => document.querySelector(sel);
+
+  // 테마 노선 옵션 (data.js의 LINES 사용)
+  function lineColor(id) { const l = lineById(id); return l ? l.color : "#0052A4"; }
+  function lineName(id) { const l = lineById(id); return l ? l.name : id; }
+  function lineDarkText(id) { const l = lineById(id); return l && l.darkText; }
+
+  /* ---------- 상단 우측 계정 버튼 ---------- */
+  function renderAccountButton() {
+    const wrap = $("#account-area");
+    if (!wrap) return;
+    wrap.innerHTML = "";
+
+    if (!Account.isConfigured()) return; // 설정 전이면 버튼 숨김
+
+    if (!Account.isLoggedIn()) {
+      const btn = document.createElement("button");
+      btn.className = "account-btn login";
+      btn.type = "button";
+      btn.textContent = "구글로 로그인";
+      btn.addEventListener("click", () => Account.signInWithGoogle());
+      wrap.appendChild(btn);
+      return;
+    }
+
+    // 로그인했지만 프로필(닉네임)이 아직 없으면 설정 모달 띄우기
+    if (!Account.hasProfile()) {
+      openProfileSetup();
+      return;
+    }
+
+    // 로그인 + 프로필 있음 → 닉네임 태그(테마 색 테두리) + 마이페이지 진입
+    const p = Account.getProfile();
+    const tag = document.createElement("button");
+    tag.type = "button";
+    tag.className = "nick-tag";
+    tag.style.setProperty("--theme", lineColor(p.theme_line));
+    tag.innerHTML = `<span class="nick-dot"></span><span class="nick-text">${escapeHtml(p.nickname)}</span>`;
+    tag.title = "마이페이지 열기";
+    tag.addEventListener("click", openMyPage);
+    wrap.appendChild(tag);
+  }
+
+  /* ---------- 닉네임 태그(랭킹/목록에서 재사용) ---------- */
+  function nickTagHTML(nickname, themeLine) {
+    const color = lineColor(themeLine);
+    return `<span class="nick-tag static" style="--theme:${color}">
+      <span class="nick-dot"></span><span class="nick-text">${escapeHtml(nickname)}</span>
+    </span>`;
+  }
+
+  function escapeHtml(s) {
+    return (s || "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  /* ---------- 테마 노선 선택 그리드 ---------- */
+  function buildThemePicker(container, selectedId, onPick) {
+    container.innerHTML = "";
+    for (const line of LINES) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "theme-swatch" + (line.id === selectedId ? " selected" : "");
+      b.style.setProperty("--c", line.color);
+      b.style.setProperty("--t", line.darkText ? "#23262b" : "#fff");
+      b.dataset.id = line.id;
+      b.innerHTML = `<span class="theme-badge">${line.badge}</span><span class="theme-name">${line.name}</span>`;
+      b.addEventListener("click", () => {
+        container.querySelectorAll(".theme-swatch").forEach(x => x.classList.remove("selected"));
+        b.classList.add("selected");
+        onPick(line.id);
+      });
+      container.appendChild(b);
+    }
+  }
+
+  /* ---------- 첫 로그인: 프로필 설정 모달 ---------- */
+  function openProfileSetup() {
+    let chosenTheme = "L1";
+    const modal = $("#profile-modal");
+    modal.querySelector(".modal-title").textContent = "환영합니다! 프로필을 만들어요";
+    const nickInput = $("#profile-nick");
+    nickInput.value = "";
+    const err = $("#profile-error");
+    err.textContent = "";
+    buildThemePicker($("#profile-theme-grid"), chosenTheme, id => { chosenTheme = id; });
+
+    const saveBtn = $("#profile-save");
+    saveBtn.textContent = "시작하기";
+    saveBtn.onclick = async () => {
+      err.textContent = "";
+      saveBtn.disabled = true;
+      const res = await Account.createProfile(nickInput.value, chosenTheme);
+      saveBtn.disabled = false;
+      if (res.ok) { closeModal("#profile-modal"); renderAccountButton(); }
+      else err.textContent = res.message || "오류가 발생했어요.";
+    };
+    // 프로필 설정은 닫기 버튼 대신 로그아웃만 가능(닉네임 없으면 못 씀)
+    $("#profile-cancel").onclick = async () => { await Account.signOut(); closeModal("#profile-modal"); };
+
+    openModal("#profile-modal");
+    nickInput.focus();
+  }
+
+  /* ---------- 마이페이지 모달 ---------- */
+  async function openMyPage() {
+    const p = Account.getProfile();
+    if (!p) return;
+    openModal("#mypage-modal");
+
+    // 헤더: 닉네임 태그 + 이메일
+    $("#mypage-nicktag").innerHTML = nickTagHTML(p.nickname, p.theme_line);
+    $("#mypage-email").textContent = Account.getEmail() || "";
+
+    // 테마 노선 변경기
+    let chosen = p.theme_line;
+    buildThemePicker($("#mypage-theme-grid"), chosen, async id => {
+      chosen = id;
+      const ok = await Account.updateThemeLine(id);
+      if (ok) { $("#mypage-nicktag").innerHTML = nickTagHTML(p.nickname, id); renderAccountButton(); }
+    });
+
+    // 닉네임 변경
+    const nick = $("#mypage-nick");
+    nick.value = p.nickname;
+    $("#mypage-nick-save").onclick = async () => {
+      const res = await Account.updateNickname(nick.value);
+      const m = $("#mypage-nick-msg");
+      m.textContent = res.ok ? "변경했어요!" : res.message;
+      m.className = "field-msg " + (res.ok ? "ok" : "no");
+      if (res.ok) { $("#mypage-nicktag").innerHTML = nickTagHTML(nick.value.trim(), chosen); renderAccountButton(); }
+    };
+
+    // 최고점 요약
+    const best = await Account.myBest();
+    const label = { core: "1~9호선", all: "전체", custom: "커스텀" };
+    const order = ["core", "all", "custom"];
+    $("#mypage-best").innerHTML = order
+      .filter(k => best[k] !== undefined)
+      .map(k => `<div class="best-card"><span class="best-mode">${label[k]}</span><span class="best-score">${best[k]}</span><span class="best-unit">역</span></div>`)
+      .join("") || `<p class="muted">아직 기록이 없어요. 1분 도전 모드를 플레이해보세요!</p>`;
+
+    // 플레이 기록 목록
+    const plays = await Account.myPlays(50);
+    const list = $("#mypage-plays");
+    if (plays.length === 0) {
+      list.innerHTML = `<p class="muted">시간제한 모드 기록이 여기에 쌓여요.</p>`;
+    } else {
+      list.innerHTML = plays.map(pl => {
+        const d = new Date(pl.created_at);
+        const date = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+        return `<div class="play-row">
+          <span class="play-score">${pl.score}역</span>
+          <span class="play-mode">${escapeHtml(pl.mode_label)}</span>
+          <span class="play-date">${date}</span>
+        </div>`;
+      }).join("");
+    }
+
+    $("#mypage-logout").onclick = async () => { await Account.signOut(); closeModal("#mypage-modal"); renderAccountButton(); };
+  }
+
+  /* ---------- 랭킹 모달 ---------- */
+  let rankTab = "core";
+  async function openRanking() {
+    openModal("#ranking-modal");
+    $("#ranking-reset").textContent = "⏳ " + Account.nextResetText();
+    setRankTab(rankTab);
+  }
+
+  function setRankTab(mode) {
+    rankTab = mode;
+    document.querySelectorAll(".rank-tab").forEach(t =>
+      t.classList.toggle("active", t.dataset.mode === mode));
+    loadRanking(mode);
+  }
+
+  async function loadRanking(mode) {
+    const body = $("#ranking-body");
+    body.innerHTML = `<p class="muted">불러오는 중…</p>`;
+    if (!Account.isConfigured()) {
+      body.innerHTML = `<p class="muted">랭킹을 쓰려면 먼저 Supabase 설정이 필요해요.</p>`;
+      return;
+    }
+    const rows = await Account.weeklyRanking(mode, 50);
+    const myId = Account.getProfile()?.id;
+    if (rows.length === 0) {
+      body.innerHTML = `<p class="muted">이번 주 기록이 아직 없어요. 첫 주자가 되어보세요!</p>`;
+      return;
+    }
+    body.innerHTML = rows.map(r => {
+      const medal = r.rank === 1 ? "🥇" : r.rank === 2 ? "🥈" : r.rank === 3 ? "🥉" : `${r.rank}`;
+      const mine = myId && r.user_id === myId ? " mine" : "";
+      return `<div class="rank-row${mine}">
+        <span class="rank-num">${medal}</span>
+        <span class="rank-nick">${nickTagHTML(r.nickname, r.theme_line)}</span>
+        <span class="rank-score">${r.best_score}<small>역</small></span>
+      </div>`;
+    }).join("");
+  }
+
+  /* ---------- 모달 공통 ---------- */
+  function openModal(sel) { $(sel).classList.add("show"); document.body.classList.add("modal-open"); }
+  function closeModal(sel) { $(sel).classList.remove("show"); if (!document.querySelector(".modal-backdrop.show")) document.body.classList.remove("modal-open"); }
+
+  /* ---------- game.js가 호출하는 훅 ---------- */
+  // 시간제한 모드 한 판이 끝나면 game.js가 이걸 부른다.
+  window.onPlayFinished = async ({ score, mode, modeLabel, playMode }) => {
+    if (playMode !== "timed") return;          // 연속 모드는 저장 안 함
+    if (!Account.isLoggedIn() || !Account.hasProfile()) return; // 비로그인은 저장 안 함
+    await Account.savePlay({ score, mode, modeLabel });
+  };
+
+  /* ---------- 초기화 ---------- */
+  document.addEventListener("DOMContentLoaded", () => {
+    // 버튼 연결
+    $("#btn-ranking")?.addEventListener("click", openRanking);
+    $("#btn-ranking-end")?.addEventListener("click", openRanking);
+
+    document.querySelectorAll(".rank-tab").forEach(t =>
+      t.addEventListener("click", () => setRankTab(t.dataset.mode)));
+
+    // 모달 닫기 버튼 / 배경 클릭
+    document.querySelectorAll("[data-close-modal]").forEach(btn =>
+      btn.addEventListener("click", () => closeModal("#" + btn.dataset.closeModal)));
+    document.querySelectorAll(".modal-backdrop").forEach(bd =>
+      bd.addEventListener("click", e => { if (e.target === bd) closeModal("#" + bd.id); }));
+
+    // 로그인/프로필 상태가 바뀌면 버튼 다시 그림
+    Account.onChange(renderAccountButton);
+    Account.init().then(renderAccountButton);
+  });
+
+  // 다른 스크립트에서 쓸 수 있게 일부 노출
+  window.AccountUI = { renderAccountButton, openRanking, openMyPage };
+})();
