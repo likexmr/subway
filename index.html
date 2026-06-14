@@ -68,9 +68,14 @@
       </div>
       <p class="tagline">노선도를 보고 60초 안에 역 이름을 맞추세요</p>
 
+      <div class="region-select" role="group" aria-label="지역 선택">
+        <button type="button" class="region-btn active" data-region="seoul">수도권</button>
+        <button type="button" class="region-btn" data-region="busan">부산</button>
+      </div>
+
       <fieldset class="mode-select">
         <legend class="sr-only">게임 모드 선택</legend>
-        <label class="mode-option">
+        <label class="mode-option core-only">
           <input type="radio" name="mode" value="core" checked>
           <span class="mode-card">
             <strong>1~9호선</strong>
@@ -173,7 +178,11 @@
       <button class="modal-x" type="button" data-close-modal="ranking-modal" aria-label="닫기">✕</button>
       <h2 class="modal-title">🏆 주간 랭킹</h2>
       <p id="ranking-reset" class="rank-reset"></p>
-      <div class="rank-tabs">
+      <div class="rank-region-tabs">
+        <button class="rank-region-tab active" type="button" data-region="seoul">수도권</button>
+        <button class="rank-region-tab" type="button" data-region="busan">부산</button>
+      </div>
+      <div class="rank-tabs" id="rank-line-tabs">
         <button class="rank-tab active" type="button" data-mode="core">1~9호선</button>
         <button class="rank-tab" type="button" data-mode="all">전체 노선</button>
       </div>
@@ -217,6 +226,7 @@
   <div id="toast" class="toast" role="status"></div>
 
   <script src="js/data.js"></script>
+  <script src="js/data-busan.js"></script>
   <script src="js/hangul.js"></script>
   <script src="js/layout.js"></script>
   <script src="js/map.js"></script>
