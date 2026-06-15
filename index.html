@@ -26,6 +26,12 @@
   <!-- 우측 상단 계정 영역 (로그인 버튼 / 닉네임 태그) -->
   <div id="account-area" class="account-area"></div>
 
+  <!-- 인앱 브라우저(카카오톡 등) 안내 배너 -->
+  <div id="inapp-banner" class="inapp-banner">
+    <span id="inapp-banner-text" class="inapp-banner-text"></span>
+    <button id="inapp-banner-close" type="button" class="inapp-banner-close" aria-label="닫기">✕</button>
+  </div>
+
   <!-- 게임 중 상단 HUD -->
   <header id="hud">
     <div class="hud-left">
@@ -223,6 +229,27 @@
     </div>
   </div>
 
+  <!-- 인앱 브라우저 안내 모달 (iOS 등 강제 탈출이 안 되는 경우) -->
+  <div id="inapp-modal" class="modal-backdrop">
+    <div class="modal-card">
+      <button class="modal-x" type="button" data-close-modal="inapp-modal" aria-label="닫기">✕</button>
+      <h2 class="modal-title">🌐 외부 브라우저로 열어주세요</h2>
+      <p id="inapp-msg" class="inapp-msg"></p>
+      <div class="inapp-steps">
+        <p><b>방법 1.</b> 화면 우측 위/아래의 메뉴(<b>···</b> 또는 공유 아이콘)를 누르고<br>
+          <b>‘다른 브라우저로 열기’</b> 또는 <b>‘Chrome/Safari로 열기’</b>를 선택하세요.</p>
+        <p><b>방법 2.</b> 아래 주소를 복사해서 크롬·사파리 주소창에 붙여넣으세요.</p>
+      </div>
+      <div class="inline-field">
+        <input id="inapp-url" class="field-input" type="text" readonly>
+        <button id="inapp-copy" class="primary-btn slim" type="button">주소 복사</button>
+      </div>
+      <div class="modal-actions" style="justify-content:center; margin-top:16px;">
+        <button id="inapp-open" class="rank-open-btn" type="button" style="flex:1;">외부 브라우저로 열기 다시 시도</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toast" class="toast" role="status"></div>
 
   <script src="js/data.js"></script>
@@ -236,6 +263,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase-config.js"></script>
   <script src="js/backend.js"></script>
+  <script src="js/inapp-browser.js"></script>
   <script src="js/account-ui.js"></script>
 </body>
 </html>
