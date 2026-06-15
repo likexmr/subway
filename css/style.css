@@ -768,3 +768,34 @@ body.modal-open { overflow: hidden; }
 .rank-region-tab.active {
   background: var(--ink); color: #fff; border-color: var(--ink);
 }
+
+/* ============================================================
+   인앱 브라우저(카카오톡 등) 안내 배너 & 모달
+   ============================================================ */
+.inapp-banner {
+  position: fixed; left: 0; right: 0; top: 0; z-index: 55;
+  display: none; align-items: center; gap: 10px;
+  background: #fff4d6; color: #6b4e00;
+  border-bottom: 2px solid #f0c64b;
+  padding: 10px 14px; font-size: 13.5px; font-weight: 700;
+  box-shadow: 0 4px 14px rgba(0,0,0,.08);
+}
+.inapp-banner.show { display: flex; }
+.inapp-banner-text { flex: 1; cursor: pointer; line-height: 1.4; }
+.inapp-banner-text u { text-underline-offset: 2px; }
+.inapp-banner-close {
+  flex: none; width: 26px; height: 26px; border-radius: 50%;
+  border: none; background: rgba(0,0,0,.08); color: #6b4e00;
+  font-size: 13px; cursor: pointer; line-height: 1;
+}
+/* 배너가 떠 있을 때 게임/공부 중에는 숨김 */
+.in-game .inapp-banner, .studying .inapp-banner { display: none !important; }
+
+.inapp-msg { font-size: 14.5px; line-height: 1.6; text-align: center; color: var(--ink); margin-bottom: 14px; }
+.inapp-steps {
+  background: #f7f8fa; border-radius: 14px; padding: 14px 16px;
+  font-size: 13.5px; line-height: 1.65; color: var(--ink); margin-bottom: 14px;
+}
+.inapp-steps p { margin: 0 0 10px; }
+.inapp-steps p:last-child { margin-bottom: 0; }
+.inapp-steps b { color: var(--line-blue); }
